@@ -35,7 +35,7 @@ def crear_grafo_de_ejemplo():
     # Posiciones para la visualización, 'k' aumenta la separación para una mejor visualización
     posiciones = nx.spring_layout(grafo, seed=42, k=0.8)
 
-def dijkstra(g, inicio):
+def dijkstra(g, inicio): # diccionario
     """Algoritmo de Dijkstra para encontrar el camino más corto desde un nodo de inicio."""
     distancias = {nodo: float('infinity') for nodo in g.nodes}
     distancias[inicio] = 0
@@ -140,11 +140,11 @@ def calcular_ruta():
         info_ruta_mas_corta = {'error': 'Uno o más nodos no existen en el grafo.'}
         return redirect(url_for('inicio'))
 
-    # Calcular ruta de inicio a intermedio
+    # ruta de inicio a intermedio
     distancias1, previos1 = dijkstra(grafo, inicio_nodo)
     camino1 = obtener_camino(previos1, inicio_nodo, intermedio_nodo)
     
-    # Calcular ruta de intermedio a fin
+    # ruta de intermedio a fin
     distancias2, previos2 = dijkstra(grafo, intermedio_nodo)
     camino2 = obtener_camino(previos2, intermedio_nodo, fin_nodo)
 
@@ -155,9 +155,9 @@ def calcular_ruta():
         camino_total = camino1 + camino2[1:]
         
         info_ruta_mas_corta = {
-            'camino': camino_total,
-            'distancia': distancia_total,
-            'inicio': inicio_nodo,
+            'camino': camino_total, # lista
+            'distancia': distancia_total, # int
+            'inicio': inicio_nodo, #string
             'intermedio': intermedio_nodo,
             'fin': fin_nodo
         }
