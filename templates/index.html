@@ -59,12 +59,12 @@
                     <h3>Error</h3>
                     <p>{{ path_info.error }}</p>
                 </div>
-            {% elif path_info.path %}
+            {% elif path_info.camino %}
                 <div class="result">
                     <h3>Ruta Más Corta Encontrada</h3>
-                    <p><strong>Desde:</strong> {{ path_info.start }} <strong>Pasando por:</strong> {{ path_info.intermediate }} <strong>Hasta:</strong> {{ path_info.end }}</p>
-                    <p><strong>Ruta:</strong> {{ " -> ".join(path_info.path) }}</p>
-                    <p><strong>Distancia Total:</strong> {{ path_info.distance }}</p>
+                    <p><strong>Desde:</strong> {{ path_info.inicio }} <strong>Pasando por:</strong> {{ path_info.intermedio }} <strong>Hasta:</strong> {{ path_info.fin }}</p>
+                    <p><strong>Ruta:</strong> {{ " -> ".join(path_info.camino) }}</p>
+                    <p><strong>Distancia Total:</strong> {{ path_info.distancia }}</p>
                 </div>
             {% endif %}
         {% endif %}
