@@ -18,7 +18,7 @@ def crear_grafo_de_ejemplo():
     """Crea un grafo de ejemplo no dirigido y ponderado."""
     global grafo, posiciones
     grafo = nx.Graph()
-    nodos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+    nodos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] #, 'K', 'L']
     grafo.add_nodes_from(nodos)
     aristas = [
         ('A', 'B', 5), ('A', 'C', 10),
@@ -32,8 +32,8 @@ def crear_grafo_de_ejemplo():
         ('H', 'E', 10)
     ]
     grafo.add_weighted_edges_from(aristas)
-    # Posiciones para la visualización
-    posiciones = nx.spring_layout(grafo, seed=42)
+    # Posiciones para la visualización, 'k' aumenta la separación para una mejor visualización
+    posiciones = nx.spring_layout(grafo, seed=42, k=0.8)
 
 def dijkstra(g, inicio):
     """Algoritmo de Dijkstra para encontrar el camino más corto desde un nodo de inicio."""

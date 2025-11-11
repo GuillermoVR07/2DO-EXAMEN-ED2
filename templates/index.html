@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora de Ruta Más Corta en Grafo</title>
+    <title>Ruta Más Corta en Grafo</title>
     <style>
         body { font-family: sans-serif; text-align: center; margin: 20px; background-color: #f4f4f9; }
         .container { max-width: 900px; margin: auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -21,11 +21,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>Calculadora de Ruta Más Corta en Grafo</h1>
+        <h1>Ruta Más Corta en Grafo</h1>
 
         <div>
             <form action="/cargar_grafo" method="post">
-                <button type="submit">Cargar Grafo de Ejemplo</button>
+                <button type="submit">Cargar Grafo</button>
             </form>
             <form action="/borrar_grafo" method="post">
                 <button type="submit" class="danger">Borrar Grafo</button>
@@ -49,7 +49,7 @@
                 <button type="submit">Calcular Distancia</button>
             </form>
             <div class="node-list">
-                Nodos disponibles: {{ nodos|join(', ') }}
+                Nodos: {{ nodos|join(', ') }}
             </div>
         {% endif %}
 
@@ -72,7 +72,7 @@
         {% if url_imagen %}
             <img src="{{ url_imagen }}" alt="Visualización del Grafo">
         {% else %}
-            <p>El grafo está vacío. Carga un grafo de ejemplo para empezar.</p>
+            <p>El grafo está vacío.</p>
         {% endif %}
     </div>
 </body>
