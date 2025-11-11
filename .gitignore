@@ -1,0 +1,9 @@
+# Entorno virtual de Python
+venv/
+
+# Archivos de cache de Python
+__pycache__/
+*.pyc
+
+# Archivos generados por la aplicación
+static/tree.png
