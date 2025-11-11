@@ -1,252 +1,179 @@
-
-
 import os
 import time
 from flask import Flask, render_template, request, redirect, url_for
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import networkx as nx
+import heapq
 
-# --- Clase Nodo ---
-class Nodo:
-    def __init__(self, valor):
-        self.valor = valor
-        self.hijo_izquierdo = None
-        self.hijo_derecho = None
-
-    def obtener_hijo_izquierdo(self):
-        return self.hijo_izquierdo
-
-    def obtener_hijo_derecho(self):
-        return self.hijo_derecho
-    
-    def establecer_hijo_izquierdo(self, nodo):
-        self.hijo_izquierdo = nodo
-
-    def establecer_hijo_derecho(self, nodo):
-        self.hijo_derecho = nodo
-
-    def obtener_valor(self):
-        return self.valor
-    
-    def establecer_valor(self, valor):
-        self.valor = valor
-
-    def es_hoja(self):
-        return self.hijo_izquierdo is None and self.hijo_derecho is None
-
-# --- Clase ArbolBinario ---
-class ArbolBinario:
-    def __init__(self):
-        self.raiz = None
-
-    def insertar(self, valor):
-        self.raiz = self._insertar_recursivo(self.raiz, valor)
-
-    def _insertar_recursivo(self, raiz_aux, valor):
-        if raiz_aux is None:
-            return Nodo(valor)
-        else:
-            if valor < raiz_aux.obtener_valor():
-                raiz_aux.establecer_hijo_izquierdo(self._insertar_recursivo(raiz_aux.obtener_hijo_izquierdo(), valor))
-            else:
-                raiz_aux.establecer_hijo_derecho(self._insertar_recursivo(raiz_aux.obtener_hijo_derecho(), valor))
-            return raiz_aux
-    
-    def verificar_hoja(self, raiz_aux):
-        return raiz_aux.obtener_hijo_izquierdo() is None and raiz_aux.obtener_hijo_derecho() is None
-
-    def altura(self):
-        return self._altura_recursivo(self.raiz)
-
-    def _altura_recursivo(self, raiz_aux):
-        if raiz_aux is None:
-            return -1
-        
-        altura_izquierda = self._altura_recursivo(raiz_aux.obtener_hijo_izquierdo())
-        altura_derecha = self._altura_recursivo(raiz_aux.obtener_hijo_derecho())
-        
-        return 1 + max(altura_izquierda, altura_derecha)
-
-    def contar_filas_espejo(self, altura_maxima_usuario):
-        if self.raiz is None:
-            return 0
-        
-        altura_real_arbol = self.altura()
-        limite_verificacion = min(altura_maxima_usuario, altura_real_arbol)
-
-        contador = 0
-        for nivel in range(1, limite_verificacion + 1):
-            if self.son_nodos_en_el_nivel_reflejado(self.raiz.obtener_hijo_izquierdo(), self.raiz.obtener_hijo_derecho(), nivel - 1):
-                contador += 1
-            else:
-                break
-        return contador
-
-    def son_nodos_en_el_nivel_reflejado(self, nodo1, nodo2, nivel):
-        if nivel == 0:
-            return (nodo1 is None) == (nodo2 is None)
-
-        if (nodo1 is None) != (nodo2 is None):
-            return False
-        
-        if nodo1 is None:
-            return True
-
-        return (self.son_nodos_en_el_nivel_reflejado(nodo1.obtener_hijo_izquierdo(), nodo2.obtener_hijo_derecho(), nivel - 1) and
-                self.son_nodos_en_el_nivel_reflejado(nodo1.obtener_hijo_derecho(), nodo2.obtener_hijo_izquierdo(), nivel - 1))
-
-    def contar_nodos_espejo(self, altura):
-        if self.raiz is None:
-            return 0
-        
-        altura_real = self.altura()
-        altura_a_verificar = min(altura, altura_real)
-
-        return self._contar_nodos_espejo_recursivo(self.raiz.obtener_hijo_izquierdo(), self.raiz.obtener_hijo_derecho(), 1, altura_a_verificar)
-
-    def _contar_nodos_espejo_recursivo(self, nodo1, nodo2, nivel_actual, altura_maxima):
-        if nivel_actual > altura_maxima:
-            return 0
-
-        if nodo1 is None or nodo2 is None:
-            return 0
-
-        contador = 2
-        
-        contador += self._contar_nodos_espejo_recursivo(
-            nodo1.obtener_hijo_izquierdo(), nodo2.obtener_hijo_derecho(), nivel_actual + 1, altura_maxima
-        )
-        contador += self._contar_nodos_espejo_recursivo(
-            nodo1.obtener_hijo_derecho(), nodo2.obtener_hijo_izquierdo(), nivel_actual + 1, altura_maxima
-        )
-        
-        return contador
-
-# --- Aplicación Flask ---
 app = Flask(__name__)
-arbol = ArbolBinario()
 
-def obtener_nodos_y_aristas(nodo, nodos=None, aristas=None):
-    if nodos is None:
-        nodos = []
-    if aristas is None:
-        aristas = []
+# Variable global para almacenar el grafo
+G = None
+pos = None
+shortest_path_info = {}
+
+def crear_grafo_de_ejemplo():
+    """Crea un grafo de ejemplo no dirigido y ponderado."""
+    global G, pos
+    G = nx.Graph()
+    nodos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+    G.add_nodes_from(nodos)
+    aristas = [
+        ('A', 'B', 5), ('A', 'C', 10),
+        ('B', 'D', 8), ('B', 'E', 15),
+        ('C', 'D', 4), ('C', 'F', 20),
+        ('D', 'E', 6), ('D', 'F', 9),
+        ('E', 'F', 12),
+        ('F', 'G', 7), ('G', 'H', 3),
+        ('H', 'I', 11), ('I', 'J', 14),
+        ('J', 'A', 18), ('G', 'D', 5),
+        ('H', 'E', 10)
+    ]
+    G.add_weighted_edges_from(aristas)
+    # Posiciones para la visualización
+    pos = nx.spring_layout(G, seed=42)
+
+def dijkstra(graph, start):
+    """Algoritmo de Dijkstra para encontrar el camino más corto desde un nodo de inicio."""
+    distances = {node: float('infinity') for node in graph.nodes}
+    distances[start] = 0
+    previous_nodes = {node: None for node in graph.nodes}
+    priority_queue = [(0, start)]
+
+    while priority_queue:
+        current_distance, current_node = heapq.heappop(priority_queue)
+
+        if current_distance > distances[current_node]:
+            continue
+
+        for neighbor, data in graph[current_node].items():
+            weight = data['weight']
+            distance = current_distance + weight
+            if distance < distances[neighbor]:
+                distances[neighbor] = distance
+                previous_nodes[neighbor] = current_node
+                heapq.heappush(priority_queue, (distance, neighbor))
     
-    if nodo is not None:
-        nodos.append(nodo)
-        if nodo.obtener_hijo_izquierdo() is not None:
-            aristas.append((nodo, nodo.obtener_hijo_izquierdo()))
-            obtener_nodos_y_aristas(nodo.obtener_hijo_izquierdo(), nodos, aristas)
-        if nodo.obtener_hijo_derecho() is not None:
-            aristas.append((nodo, nodo.obtener_hijo_derecho()))
-            obtener_nodos_y_aristas(nodo.obtener_hijo_derecho(), nodos, aristas)
-    return nodos, aristas
+    return distances, previous_nodes
 
-def obtener_posiciones(raiz):
-    posiciones = {}
-    next_x = [0]
+def obtener_camino(previous_nodes, start, end):
+    """Reconstruye el camino más corto desde el diccionario de nodos previos."""
+    path = []
+    current_node = end
+    while current_node is not None:
+        path.append(current_node)
+        current_node = previous_nodes[current_node]
+    path.reverse()
+    if path[0] == start:
+        return path
+    return None
 
-    def _obtener_posiciones_inorden(nodo, nivel=0):
-        if nodo is None:
-            return
-        
-        _obtener_posiciones_inorden(nodo.obtener_hijo_izquierdo(), nivel + 1)
-        
-        posiciones[nodo.obtener_valor()] = (next_x[0], -nivel)
-        next_x[0] += 1.2
-
-        _obtener_posiciones_inorden(nodo.obtener_hijo_derecho(), nivel + 1)
-
-    _obtener_posiciones_inorden(raiz)
-    return posiciones
-
-def dibujar_arbol(raiz):
-    if raiz is None:
-        if os.path.exists('static/tree.png'):
-            os.remove('static/tree.png')
+def dibujar_grafo(path=None, path_color='r'):
+    """Dibuja el grafo y resalta un camino si se proporciona."""
+    if G is None:
+        if os.path.exists('static/graph.png'):
+            os.remove('static/graph.png')
         return
 
     if not os.path.exists('static'):
         os.makedirs('static')
 
-    posiciones = obtener_posiciones(raiz)
-    nodos, aristas = obtener_nodos_y_aristas(raiz)
-
-    fig, ax = plt.subplots(figsize=(16, 10))
-    ax.axis('off')
-
-    for nodo_padre, nodo_hijo in aristas:
-        pos_padre = posiciones.get(nodo_padre.obtener_valor())
-        pos_hijo = posiciones.get(nodo_hijo.obtener_valor())
-        if pos_padre and pos_hijo:
-            ax.plot([pos_padre[0], pos_hijo[0]], [pos_padre[1], pos_hijo[1]], 'k-', lw=1.5, zorder=1)
-
-    for valor_nodo, (x, y) in posiciones.items():
-        circulo = plt.Circle((x, y), 0.3, color='skyblue', zorder=2)
-        ax.add_patch(circulo)
-        ax.text(x, y, str(valor_nodo), ha='center', va='center', zorder=3, fontsize=28)
+    fig, ax = plt.subplots(figsize=(12, 8))
     
-    ax.relim()
-    ax.autoscale_view()
+    # Dibuja el grafo base
+    nx.draw(G, pos, with_labels=True, node_color='skyblue', node_size=2000, font_size=15, font_weight='bold', ax=ax)
+    labels = nx.get_edge_attributes(G, 'weight')
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=labels, ax=ax)
 
-    plt.title("Árbol Binario de Búsqueda")
-    plt.savefig('static/tree.png')
+    # Si hay un camino para resaltar
+    if path:
+        path_edges = list(zip(path, path[1:]))
+        nx.draw_networkx_nodes(G, pos, nodelist=path, node_color=path_color, node_size=2000, ax=ax)
+        nx.draw_networkx_edges(G, pos, edgelist=path_edges, edge_color=path_color, width=2.5, ax=ax)
+
+    plt.title("Grafo Ponderado No Dirigido")
+    plt.savefig('static/graph.png')
     plt.close(fig)
 
 @app.route('/')
 def inicio():
-    resultado_filas = request.args.get('resultado_espejo', None)
-    resultado_nodos_espejo = request.args.get('resultado_nodos_espejo', None)
+    global shortest_path_info
     
-    dibujar_arbol(arbol.raiz)
-    existe_imagen = arbol.raiz is not None
-    
+    # Dibuja el grafo si existe
+    if G:
+        path_total = shortest_path_info.get('path')
+        dibujar_grafo(path=path_total)
+
+    existe_imagen = G is not None
     marca_de_tiempo = int(time.time()) if existe_imagen else 0
-    url_imagen = f'static/tree.png?t={marca_de_tiempo}' if existe_imagen else None
+    url_imagen = f'static/graph.png?t={marca_de_tiempo}' if existe_imagen else None
     
     return render_template('index.html', 
-                           url_imagen=url_imagen, 
-                           resultado_espejo=resultado_filas,
-                           resultado_nodos_espejo=resultado_nodos_espejo)
+                           url_imagen=url_imagen,
+                           path_info=shortest_path_info,
+                           nodos=list(G.nodes()) if G else [])
 
-@app.route('/insertar', methods=['POST'])
-def insertar():
-    valor = request.form.get('valor')
-    if valor:
-        try:
-            valor_int = int(valor)
-            arbol.insertar(valor_int)
-        except ValueError:
-            pass
+@app.route('/cargar_grafo', methods=['POST'])
+def cargar_grafo():
+    global shortest_path_info
+    crear_grafo_de_ejemplo()
+    shortest_path_info = {}  # Limpiar la información de la ruta anterior
+    dibujar_grafo()
     return redirect(url_for('inicio'))
 
-@app.route('/contar_espejo', methods=['POST'])
-def contar_espejo():
-    resultado = None
-    try:
-        altura = int(request.form['altura_maxima'])
-        resultado = arbol.contar_filas_espejo(altura)
-    except (ValueError, TypeError):
-        resultado = "Error: La altura debe ser un número entero."
-    return redirect(url_for('inicio', resultado_espejo=resultado))
+@app.route('/calcular_ruta', methods=['POST'])
+def calcular_ruta():
+    global shortest_path_info
+    
+    inicio_nodo = request.form.get('inicio').upper()
+    intermedio_nodo = request.form.get('intermedio').upper()
+    fin_nodo = request.form.get('fin').upper()
 
-@app.route('/contar_columnas_espejo', methods=['POST'])
-def contar_columnas_espejo():
-    resultado_nodos = None
-    try:
-        altura = int(request.form['altura_columnas'])
-        resultado_nodos = arbol.contar_nodos_espejo(altura)
-    except (ValueError, TypeError):
-        resultado_nodos = "Error: La altura debe ser un número entero."
-    return redirect(url_for('inicio', resultado_nodos_espejo=resultado_nodos))
+    if not G:
+        shortest_path_info = {'error': 'El grafo no está cargado.'}
+        return redirect(url_for('inicio'))
 
-@app.route('/borrar_arbol', methods=['POST'])
-def borrar_arbol():
-    global arbol
-    arbol = ArbolBinario()
-    if os.path.exists('static/tree.png'):
-        os.remove('static/tree.png')
+    nodos_validos = all(n in G.nodes for n in [inicio_nodo, intermedio_nodo, fin_nodo])
+    if not nodos_validos:
+        shortest_path_info = {'error': 'Uno o más nodos no existen en el grafo.'}
+        return redirect(url_for('inicio'))
+
+    # Calcular ruta de inicio a intermedio
+    dist1, prev1 = dijkstra(G, inicio_nodo)
+    path1 = obtener_camino(prev1, inicio_nodo, intermedio_nodo)
+    
+    # Calcular ruta de intermedio a fin
+    dist2, prev2 = dijkstra(G, intermedio_nodo)
+    path2 = obtener_camino(prev2, intermedio_nodo, fin_nodo)
+
+    if path1 and path2:
+        # Combinar caminos y distancia
+        distancia_total = dist1[intermedio_nodo] + dist2[fin_nodo]
+        # El nodo intermedio se repite, lo eliminamos una vez
+        path_total = path1 + path2[1:]
+        
+        shortest_path_info = {
+            'path': path_total,
+            'distance': distancia_total,
+            'start': inicio_nodo,
+            'intermediate': intermedio_nodo,
+            'end': fin_nodo
+        }
+    else:
+        shortest_path_info = {'error': 'No se pudo encontrar una ruta que conecte los tres puntos.'}
+
+    return redirect(url_for('inicio'))
+
+@app.route('/borrar_grafo', methods=['POST'])
+def borrar_grafo():
+    global G, pos, shortest_path_info
+    G = None
+    pos = None
+    shortest_path_info = {}
+    if os.path.exists('static/graph.png'):
+        os.remove('static/graph.png')
     return redirect(url_for('inicio'))
 
 if __name__ == '__main__':
